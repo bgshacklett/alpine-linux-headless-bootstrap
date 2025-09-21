@@ -348,6 +348,18 @@ rc-service networking restart
 }
 
 
+# shellcheck disable=SC2120  # Accepted arguments have defaults
+_wait_for_network() {
+    local timeout="${1:-30}"   # default: 30s
+    local t=0
+
+    _logger "Waiting $timeout seconds for networking to come up..."
+    while [ "$t" -lt "$timeout" ]; do
+        ip -4 route show default | grep -q . && return 0
+        ip -6 route show default | grep -q . && return 0
+        sleep 1
+    done
+}
 
 
 #############################################################################
@@ -408,6 +420,12 @@ cat <<-EOF >/tmp/.trash/banner
 _run_pre_network_hooks
 
 _setup_networking
+
+if _wait_for_network 30; then
+  _logger "Network is up."
+else
+  _logger "Timed out waiting for DHCP/SLAAC."
+fi
 
 # Test latest available version online.
 # Can be skipped by creating a 'opt-out'-named dummy file aside apkovl file.
