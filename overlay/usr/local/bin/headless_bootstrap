@@ -226,6 +226,39 @@ else
 fi
 }
 
+
+_run_pre_network_hooks() {
+# Run optional pre-networking hooks from the overlay before networking is set
+# up. Supported locations (in order):
+#   ${ovlpath}/pre-network.sh,
+#   ${ovlpath}/pre-network.d/*.sh
+
+export OVLPATH="$ovlpath"
+local oneshot="${ovlpath}/pre-network.sh"
+local hookdir="${ovlpath}/pre-network.d"
+
+if [ -x "$oneshot" ]; then
+  _logger "Running pre-network hook: $oneshot"
+  # shellcheck disable=SC1090  # Provided by consumer
+  . "$oneshot"
+elif [ -f "$oneshot" ]; then
+  _logger "Running pre-network hook: $oneshot"
+  # shellcheck disable=SC1090  # Provided by consumer
+  . "$oneshot"
+fi
+
+if [ -d "$hookdir" ]; then
+  for s in "$hookdir"/*.sh; do
+    [ -e "$s" ] || continue
+    [ -x "$s" ] || chmod +x "$s" 2>/dev/null || true
+    _logger "Running pre-network hook: $s"
+    # shellcheck disable=SC1090  # Provided by consumer
+    . "$s"
+  done
+fi
+}
+
+
 _setup_networking() {
 ## Setup network interfaces.
 local has_wifi wlan_lst
@@ -371,6 +404,8 @@ cat <<-EOF >/tmp/.trash/banner
 
 
 	EOF
+
+_run_pre_network_hooks
 
 _setup_networking
 
